@@ -387,7 +387,7 @@ main() {
   json_valid "$settings" || die "$settings is not valid JSON (object expected); fix it and re-run. Nothing was changed."
   json_merge "$settings" "$src/settings.fragment.json" "$CMP_TMP/settings.merged.json" ||
     die "merging $settings failed. Nothing was changed."
-  printf '{"defaultMode":"ultra"}\n' >"$CMP_TMP/caveman.fragment.json"
+  printf '{"defaultMode":"ultracave"}\n' >"$CMP_TMP/caveman.fragment.json"
   if ! json_valid "$cave_cfg" ||
     ! json_merge "$cave_cfg" "$CMP_TMP/caveman.fragment.json" "$CMP_TMP/caveman.merged.json"; then
     cave_ok=0
@@ -403,7 +403,7 @@ main() {
   if [ "$cave_ok" = 1 ]; then
     apply_json "$cave_cfg" "$CMP_TMP/caveman.merged.json"
   else
-    warn "$cave_cfg is not valid JSON (object expected); left unchanged. Set \"defaultMode\": \"ultra\" in it by hand."
+    warn "$cave_cfg is not valid JSON (object expected); left unchanged. Set \"defaultMode\": \"ultracave\" in it by hand."
     say "  skipped    $(show "$cave_cfg")"
   fi
   install_caveman_plugin

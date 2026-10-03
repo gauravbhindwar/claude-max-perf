@@ -3,10 +3,10 @@
 One-command setup of personal Claude Code rules on any machine. Works for the CLI, VS Code, JetBrains, and the desktop app (all read `~/.claude`).
 
 Installs:
-- `~/.claude/claude-max-perf/RULES.md` plus an `@claude-max-perf/RULES.md` import in `~/.claude/CLAUDE.md`: research first, strict coder/reviewer loop, ask before DB / git / deploy / installs, token budget.
+- `~/.claude/claude-max-perf/RULES.md` plus an `@claude-max-perf/RULES.md` import in `~/.claude/CLAUDE.md`: research first, coder / strict-reviewer / doc-writer loop with token limits, ask before DB / git / deploy / installs, Docker rebuild + latest-code check.
 - Agents `coder`, `strict-reviewer`, `doc-writer` in `~/.claude/agents/`.
 - Merged into `settings.json`: `permissions.ask` rules (git writes, DB tools, package installs, deploys, `.env` edits) and the caveman plugin.
-- Caveman default mode `ultra`.
+- Caveman default mode `ultracave`.
 
 Safe to re-run (updates). Existing files are backed up (`*.bak-<timestamp>`); invalid `settings.json` aborts with no changes.
 

@@ -371,7 +371,7 @@ function Install-ClaudeMaxPerf {
         try {
             $cave = Read-CmpJson $cavePath
             $caveFragment = New-Object System.Collections.Specialized.OrderedDictionary
-            $caveFragment['defaultMode'] = 'ultra'
+            $caveFragment['defaultMode'] = 'ultracave'
             $caveMerged = Merge-CmpNode $cave $caveFragment
         } catch {
             $caveErr = $_.Exception.Message
@@ -390,7 +390,7 @@ function Install-ClaudeMaxPerf {
         if ($null -eq $caveErr) {
             Set-CmpJson $cavePath $cave $caveMerged
         } else {
-            Write-Warning "claude-max-perf: $cavePath is not valid JSON (object expected): $caveErr. Left unchanged; set ""defaultMode"": ""ultra"" in it by hand."
+            Write-Warning "claude-max-perf: $cavePath is not valid JSON (object expected): $caveErr. Left unchanged; set ""defaultMode"": ""ultracave"" in it by hand."
             Say 'skipped' $cavePath
         }
 
