@@ -1,94 +1,133 @@
 # Global rules (every repo, every session)
 
-Read before any answer or change. Repo instruction files may add repo-specific conventions. These rules win on safety, model governance, workflow, and verification. Real conflict: ask user.
+Read before any answer or change. Repo instructions may add repo-specific conventions. These rules win on safety, model governance, research, workflow, and verification. Real conflict: ask user.
 
 ## 0. Session start
-1. Caveman: context must show `CAVEMAN MODE ACTIVE` with mode `ultracave` (alias `ultra`). Missing or other mode: run Skill `caveman:ultracave` before first reply.
-2. Repo instruction files: read every applicable instruction file not already in context. Nested file applies when working in its directory.
-   ```bash
-   find . \( -name node_modules -o -name .git -o -name .next -o -name dist -o -name build -o -name .venv \) -prune -o -type f \( -iname agents.md -o -iname claude.md -o -iname claude.local.md -o -iname gemini.md -o -iname agent.md -o -iname agent.local.md -o -name .cursorrules -o -name .windsurfrules -o -name copilot-instructions.md -o -path '*/.cursor/rules/*' -o -path '*/.claude/rules/*' \) -print
-   ```
-3. Docker: check if this repo runs in Docker (section 5). Remember result for task.
+1. Repo instruction files: read every applicable instruction file not already in context. Nested rules apply to files they cover.
+2. Detect Docker only when the repo appears to use it; follow section 5.
+3. Do not force a special mode or expensive workflow when the task does not need it.
 
-## 1. Research before answer or change
-Do only relevant research, cheapest first:
-1. Repo docs: README*, docs/, CONTRIBUTING*, ADRs, CHANGELOG, comments near code.
-2. Installed package docs/types for lockfile versions.
-3. Online credible sources when external/current verification is needed: official docs, release notes, specs/RFCs, MDN, maintainer GitHub repos/issues. No SEO blogs or unverified content.
-Never guess an API, flag, config key, or version-specific behavior. Find root cause before fixing.
-Pass research findings (URL + fact) into subagents so they do not repeat research.
-Questions without code change: answer directly; no agents. Pure repo-content questions may skip online research.
+## 1. Research first, but spend tokens only when research can improve the result
+For technical answers or changes:
+1. Start with repo docs and nearby comments.
+2. Check installed package docs/types for the versions actually in use.
+3. Use the internet only when external/current verification can materially improve correctness: official docs, release notes, standards/specs, maintainer GitHub repositories/issues.
+4. Prefer one targeted research pass over repeated searches.
+5. Record the useful facts and source URLs; pass them to agents so they do not repeat the same research.
+6. Never guess version-specific APIs, flags, config keys, model/effort options, or behavior.
+
+Research routing:
+- Haiku LOW: locate relevant docs/files and extract facts.
+- Sonnet LOW/MEDIUM: synthesize or apply those facts when reasoning is needed.
+- Opus: only for genuinely unresolved/high-complexity reasoning after Sonnet is insufficient and user permission is granted.
+
+Questions without code changes: answer directly; no agents unless the question requires substantial repository analysis.
 
 ## 2. Sensitive actions: ask first
-Ask in chat and wait for explicit yes every time. State exact action and target. One approval never covers a later action.
-- Any DB read/write, migration, seed, studio, or DB MCP tool.
-- git commit, push, merge, rebase, reset, revert, tag, branch delete, stash drop/clear, force operations, PR create/merge.
-- Deploy, publish, release; edit .env*/secrets; add/remove/update dependencies; delete files not created in current task; external messages.
+Ask in chat and wait for explicit yes every time. One approval never covers a later sensitive action.
+- DB reads/writes, migrations, seed/studio, or DB MCP tools.
+- git commit/push/merge/rebase/reset/revert/tag/branch deletion/stash destructive actions.
+- Deploy/publish/release.
+- Dependency add/remove/update/install.
+- .env/secrets changes.
+- Destructive deletes.
+- External messages.
 - Docker destructive operations or any remote/prod context.
-Subagents never run sensitive actions. Main session asks user.
-permissions.ask is a safety net, not a security boundary.
 
-## 3. Code-change workflow: adaptive agents
-Main session orchestrates. Subagents never spawn agents.
-1. Classify task size.
-   - Tiny: one file, <=5 logic-free lines -> main edits, reviewer only.
-   - Small: <=3 files, one focused change -> coder + reviewer.
-   - Medium/large: researcher only when needed, then coder + reviewer.
-2. Spawn only the minimum agents that add value. Never parallel agents.
-3. Coder receives a brief with objective, relevant paths, research facts, constraints, and required checks. Max 3 files per call; no pasted file content.
-4. Strict-reviewer reviews the diff plus direct callers/callees. It must hunt defects line by line and prove findings.
-5. On FAIL, resume coder with only actionable findings. Then resume reviewer with only the delta. Default max 2 fix/review cycles; a 3rd cycle only when a genuine BLOCK/MAJOR issue remains.
-6. After PASS, run the requested/cheapest relevant verification. No automatic polish round.
-7. Run doc-writer only when behavior/API/config/setup documentation actually changed or the user asks for documentation. Otherwise skip it.
-8. Final response: concise change summary, verification, workflow diagram only when useful, and sources when research was used.
+Subagents never perform sensitive actions. Main session handles them.
 
-## 4. Model governance + token economy
-Goal: maximum quality with minimum model cost, context, agents, and turns.
+## 3. Adaptive agent workflow
+Main session orchestrates. Subagents never spawn agents. Never run agents in parallel unless parallelism clearly saves more tokens than it costs.
 
-### Allowed automatically
-- Haiku: discovery, simple repo reading, docs lookup, summaries, straightforward documentation.
-- Sonnet LOW: simple coding, small fixes, routine refactors.
-- Sonnet MEDIUM: default for normal coding, debugging, review, architecture, and security-sensitive reasoning.
+Task sizing:
+- Tiny: one file, <=5 logic-free lines -> main session; review only if risk warrants it.
+- Small: <=3 files, focused change -> one coder + reviewer when review adds value.
+- Medium/large: targeted researcher when needed -> coder -> reviewer.
+- Documentation agent only when user asks for docs or the change materially alters behavior/API/config/setup docs.
 
-### Permission-gated
-- Sonnet HIGH / MAX / extra-high: NEVER enable automatically. Ask user first.
-- Opus: NEVER use automatically under any circumstance. Ask user first.
+Agent brief:
+- <=120 words.
+- Objective, paths, research facts, constraints, acceptance checks only.
+- No pasted file contents.
 
-Permission prompt must state:
-MODEL:
-REASON:
-EXPECTED BENEFIT:
-Wait for explicit confirmation. No confirmation = stay on current allowed model.
+Review loop:
+1. Reviewer inspects the current diff and direct callers/callees.
+2. On FAIL, send only actionable findings back to coder.
+3. Re-review only the changed delta plus prior actionable findings.
+4. Default max 2 fix/review cycles; a third only for a genuine BLOCK/MAJOR defect.
+5. Stop as soon as acceptance criteria and relevant checks pass.
 
-Escalation path:
-Haiku -> Sonnet LOW -> Sonnet MEDIUM -> (ask) Sonnet HIGH -> (ask) Opus
+## 4. Model + effort routing: cost is the primary optimization
+Priority order:
+1. Correct result.
+2. Cheapest capable model.
+3. Lowest sufficient effort.
+4. Smallest sufficient context.
+5. Fewest agents.
+6. Fewest turns/tool calls.
 
-A failed task, complex task, reviewer disagreement, or timeout does not authorize escalation.
+Default escalation:
+**Haiku -> Sonnet -> Opus**
 
-### Hard token controls
-- One agent at a time. Never parallel agents.
-- Prefer one capable agent over redundant agents.
-- Max 120-word agent brief. No pasted file content; use paths, line ranges, diff commands, and research references.
-- Agent reports: coder <=15 lines; reviewer one line per actionable finding + final PASS/FAIL; doc-writer <=20 lines only when invoked.
-- Agent messages: terse, delta-only. Never repeat full context or prior findings.
-- Re-review only changed delta plus prior actionable findings.
-- Do not re-research a fact already established for the task.
-- Do not read files already in context unless needed lines changed.
-- Use deterministic tools for simple work instead of agents.
-- Do not spawn an agent for trivial file inspection or a simple command.
-- Stop immediately when acceptance criteria are met and checks pass.
+Effort can be tuned independently:
+**LOW -> MEDIUM -> HIGH -> MAX/XHIGH (only where supported)**
 
-## 5. Docker: verify latest code
-Main session only. Applies when Docker runs containers for this repo.
-1. Detect:
+Default policy:
+- Haiku LOW: discovery, file search, simple documentation, source extraction, summaries.
+- Haiku MEDIUM: slightly deeper research/explanations when LOW is insufficient.
+- Sonnet LOW: straightforward coding, edits, routine fixes.
+- Sonnet MEDIUM: normal coding, debugging, review, design reasoning.
+- Sonnet HIGH: difficult debugging, complex architecture/security reasoning when justified.
+- Opus: permission-gated fallback for genuinely hard reasoning after Sonnet is insufficient.
+- Opus MAX/XHIGH: exceptional cases only and always permission-gated.
+
+Escalation rules:
+- Increase effort before switching models when the same model has the required knowledge but needs more reasoning/verification.
+- Switch model when the current model lacks the capability/context to solve the problem.
+- A timeout, vague difficulty, or first-attempt failure is not enough. Diagnose the cause first.
+- Never silently escalate to Opus.
+- A permission request must state:
+  MODEL:
+  EFFORT:
+  REASON:
+  EXPECTED BENEFIT:
+  Wait for explicit confirmation.
+
+Recommended agent defaults:
+- researcher: Haiku LOW
+- coder: Sonnet LOW
+- strict-reviewer: Sonnet MEDIUM
+- doc-writer: Haiku LOW
+
+Keep model and effort in each agent's frontmatter so routing is explicit.
+
+## 5. Token-saving research + context controls
+- Research once, reuse findings.
+- Read only relevant files/sections.
+- Prefer deterministic search/grep/glob for trivial discovery.
+- Do not ask multiple agents to rediscover the same facts.
+- Do not repeat unchanged context in handoffs.
+- Use delta-only review.
+- Keep agent outputs short.
+- No automatic “extra polish”.
+- Stop immediately after acceptance criteria pass.
+
+## 6. Docker: verify latest code
+Main session only, only for Docker-based repos.
+1. Run:
    ```bash
    docker context show
    docker compose ps --status running
    ```
-   Remote/non-local context or prod/production target: stop and ask user.
-2. After code changes, rebuild/recreate repo-code services before testing:
+2. Remote/prod context: stop and ask.
+3. After code changes, rebuild/recreate changed repo-code services before testing:
    ```bash
    docker compose up -d --build --force-recreate --wait <app-services>
    ```
-3. Verify services running/healthy and logs have no startup errors. For changed files, compare local/container hashes when practical.
-4. Never destructive-prune/remove volumes/images without permission.
+4. Verify health/logs and changed-file hashes when practical.
+5. Never prune/remove volumes/images destructively without permission.
+
+## 7. Output discipline
+- Keep user-facing answers concise.
+- When online research was used, cite the useful source(s) and state the key fact, not a research dump.
+- Use a small Mermaid workflow only when it improves understanding.
