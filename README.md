@@ -1,39 +1,64 @@
 # claude-max-perf
 
-One-command setup of personal Claude Code rules on any machine. Works for the CLI, VS Code, JetBrains, and the desktop app (all read `~/.claude`).
+One-command global Claude Code optimization focused on **quality first, token/cost efficiency second, and safe escalation**.
 
 Installs:
-- `~/.claude/claude-max-perf/RULES.md` plus an `@claude-max-perf/RULES.md` import in `~/.claude/CLAUDE.md`: research first, coder / strict-reviewer / doc-writer loop with token limits, ask before DB / git / deploy / installs, Docker rebuild + latest-code check.
-- Agents `coder`, `strict-reviewer`, `doc-writer` in `~/.claude/agents/`.
-- Merged into `settings.json`: `permissions.ask` rules (git writes, DB tools, package installs, deploys, `.env` edits) and the caveman plugin.
-- Caveman default mode `ultracave`.
+- `~/.claude/claude-max-perf/RULES.md` and imports it from `~/.claude/CLAUDE.md`.
+- Agents `coder`, `strict-reviewer`, and `doc-writer`.
+- Merged `settings.json` safety permissions and the caveman plugin settings.
+- Adaptive research + model/effort routing.
 
-Safe to re-run (updates). Existing files are backed up (`*.bak-<timestamp>`); invalid `settings.json` aborts with no changes.
+## Core strategy
 
-## macOS / Linux / WSL / Git Bash
+```
+Research only when useful
+        |
+        v
+Haiku (LOW)
+   | sufficient
+   v
+Sonnet (LOW -> MEDIUM -> HIGH)
+   | genuinely insufficient
+   v
+Opus (permission only)
+```
 
+**Token-saving rules**
+- Use deterministic tools for simple discovery.
+- Research once and pass findings forward.
+- Use the minimum sufficient model, effort, context, agents, and turns.
+- Increase effort before changing models when the model already has the needed knowledge.
+- Never silently escalate to Opus.
+- Review only changed deltas after fixes.
+- Stop as soon as acceptance criteria and relevant checks pass.
+
+## Research policy
+
+Use online research when it can materially improve correctness, especially for current or version-specific Claude Code behavior. Prefer official Anthropic/Claude Code docs, release notes, standards/specs, and maintainer repositories. Do not repeat the same research across agents.
+
+## Install
+
+### macOS / Linux / WSL / Git Bash
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gauravbhindwar/claude-max-perf/main/install.sh | bash
 ```
 
-## Windows (PowerShell)
-
+### Windows (PowerShell)
 ```powershell
 irm https://raw.githubusercontent.com/gauravbhindwar/claude-max-perf/main/install.ps1 | iex
 ```
 
 Windows CMD:
-
 ```bat
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/gauravbhindwar/claude-max-perf/main/install.ps1 | iex"
 ```
 
-Needs `jq`, `python3`, or `node` on macOS/Linux. Restart Claude Code afterwards.
+Safe to re-run. Existing managed files are backed up when replaced.
 
-## claude.ai chat (web, desktop, mobile)
+## Chat instructions
 
-Paste `claude-ai-instructions.md` into Settings > General > Instructions for Claude.
+Paste `claude-ai-instructions.md` into Claude.ai Settings > General > Instructions.
 
 ## Notes
 - `permissions.ask` is a safety net, not a security boundary.
-- `install.ps1` is reviewed by hand only; not yet run on a Windows machine.
+- `install.ps1` remains hand-reviewed in this repository; it is not claimed as Windows-tested here.
