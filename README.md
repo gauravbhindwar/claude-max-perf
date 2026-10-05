@@ -4,7 +4,7 @@ One-command global Claude Code optimization focused on **quality first, token/co
 
 Installs:
 - `~/.claude/claude-max-perf/RULES.md` and imports it from `~/.claude/CLAUDE.md`.
-- Agents `coder`, `strict-reviewer`, and `doc-writer`.
+- Agents `researcher`, `coder`, `strict-reviewer`, and `doc-writer`.
 - Merged `settings.json` safety permissions and the caveman plugin settings.
 - Adaptive research + model/effort routing.
 
@@ -14,7 +14,7 @@ Installs:
 Research only when useful
         |
         v
-Haiku (LOW)
+Haiku (LOW) — research/discovery
    | sufficient
    v
 Sonnet (LOW -> MEDIUM -> HIGH)
