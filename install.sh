@@ -10,7 +10,7 @@
 set -euo pipefail
 
 CMP_IMPORT_LINE='@claude-max-perf/RULES.md'
-CMP_AGENTS='coder strict-reviewer doc-writer'
+CMP_AGENTS='researcher coder strict-reviewer doc-writer'
 CMP_TMP=''
 CMP_TS=''
 CMP_JSON=''
