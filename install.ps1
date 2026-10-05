@@ -17,7 +17,7 @@ function Install-ClaudeMaxPerf {
 
     $base = 'https://raw.githubusercontent.com/gauravbhindwar/claude-max-perf/main'
     if ($env:CMP_BASE) { $base = $env:CMP_BASE.TrimEnd('/') }
-    $agents = @('coder', 'strict-reviewer', 'doc-writer')
+    $agents = @('researcher', 'coder', 'strict-reviewer', 'doc-writer')
     $importLine = '@claude-max-perf/RULES.md'
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
