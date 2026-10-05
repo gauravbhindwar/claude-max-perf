@@ -1,71 +1,94 @@
 # Global rules (every repo, every session)
 
-Read before any answer or change. Repo instruction files override these rules only for repo conventions (style, commands, framework rules). These rules win on safety, workflow, and verification. Real conflict: ask user.
+Read before any answer or change. Repo instruction files may add repo-specific conventions. These rules win on safety, model governance, workflow, and verification. Real conflict: ask user.
 
 ## 0. Session start
 1. Caveman: context must show `CAVEMAN MODE ACTIVE` with mode `ultracave` (alias `ultra`). Missing or other mode: run Skill `caveman:ultracave` before first reply.
-2. Repo instruction files: read every one not already in context. Nested file applies when working in its directory.
+2. Repo instruction files: read every applicable instruction file not already in context. Nested file applies when working in its directory.
    ```bash
-   find . \( -name node_modules -o -name .git -o -name .next -o -name dist -o -name build -o -name .venv \) -prune -o -type f \( -iname agents.md -o -iname claude.md -o -iname claude.local.md -o -iname gemini.md -o -name .cursorrules -o -name .windsurfrules -o -name copilot-instructions.md -o -path '*/.cursor/rules/*' -o -path '*/.claude/rules/*' \) -print
+   find . \( -name node_modules -o -name .git -o -name .next -o -name dist -o -name build -o -name .venv \) -prune -o -type f \( -iname agents.md -o -iname claude.md -o -iname claude.local.md -o -iname gemini.md -o -iname agent.md -o -iname agent.local.md -o -name .cursorrules -o -name .windsurfrules -o -name copilot-instructions.md -o -path '*/.cursor/rules/*' -o -path '*/.claude/rules/*' \) -print
    ```
-3. Docker: check if this repo runs in Docker (section 5). Remember the result for the task.
+3. Docker: check if this repo runs in Docker (section 5). Remember result for task.
 
 ## 1. Research before answer or change
-Do all three, cheapest first. Skip step 3 only for pure repo-content questions ("where is X defined").
+Do only relevant research, cheapest first:
 1. Repo docs: README*, docs/, CONTRIBUTING*, ADRs, CHANGELOG, comments near code.
-2. Installed package docs and types for the lockfile version (e.g. `node_modules/<pkg>/docs`, `node_modules/next/dist/docs/`).
-3. Online, credible sources only: official docs, release notes, specs/RFCs, MDN, maintainer GitHub repos/issues. No SEO blogs, content farms, unverified posts. Match installed version.
-Never guess an API, flag, or config key: verify it. Find root cause before fixing; state evidence.
-Main session: end reply with `Sources:` links. Subagents: no `Sources:` line. Pass findings (URL + fact) into subagent briefs so subagents do not repeat research.
+2. Installed package docs/types for lockfile versions.
+3. Online credible sources when external/current verification is needed: official docs, release notes, specs/RFCs, MDN, maintainer GitHub repos/issues. No SEO blogs or unverified content.
+Never guess an API, flag, config key, or version-specific behavior. Find root cause before fixing.
+Pass research findings (URL + fact) into subagents so they do not repeat research.
+Questions without code change: answer directly; no agents. Pure repo-content questions may skip online research.
 
 ## 2. Sensitive actions: ask first
-Ask in chat, wait for explicit yes, every time. One approval never covers a later action. State exact command and target.
-- Any DB read or write: SQL/ORM CLIs, migrations, seeds, studio tools, DB MCP tools (`execute_sql`, `apply_migration`, ...), scripts that hit a DB.
-- git commit, push, merge, rebase, reset, revert, tag, branch delete, stash drop, any `--force`; `gh pr create/merge`.
-- Deploy, publish, release; edits to `.env*` or secrets; add/remove dependencies; delete files this task did not create; messages to external services.
-- Docker: `down -v`, volume/image/system prune or rm, any remote Docker context, any container or context named `prod`/`production`.
-Subagents never run these. Subagent stops and reports; main session asks user.
-`permissions.ask` in `~/.claude/settings.json` is a safety net, not a security boundary. Still ask.
+Ask in chat and wait for explicit yes every time. State exact action and target. One approval never covers a later action.
+- Any DB read/write, migration, seed, studio, or DB MCP tool.
+- git commit, push, merge, rebase, reset, revert, tag, branch delete, stash drop/clear, force operations, PR create/merge.
+- Deploy, publish, release; edit .env*/secrets; add/remove/update dependencies; delete files not created in current task; external messages.
+- Docker destructive operations or any remote/prod context.
+Subagents never run sensitive actions. Main session asks user.
+permissions.ask is a safety net, not a security boundary.
 
-## 3. Code changes: coder / strict-reviewer / doc-writer loop
-Main session only. Subagent reading this file: skip sections 3 and 5, never spawn agents, follow brief.
-Every code change runs this loop (agents in `~/.claude/agents/`):
-1. Main: research (section 1), scope task. Big task (more than 3 files or more than 1 feature): split into slices, one slice per prompt, ask before next slice.
-2. Spawn `coder` with brief.
-3. Spawn `strict-reviewer` with changed paths. Its job: hunt every error in the change, line by line, with proof.
-4. Reviewer `FAIL`: relay findings verbatim to coder with SendMessage (resume, never respawn). Coder fixes. SendMessage reviewer `re-review` + changed paths. Repeat until `PASS`, max 3 rounds; then stop and show open findings to user.
-5. After `PASS`: Docker sync and verify (section 5), if Docker runs.
-6. Spawn `doc-writer`: updates affected docs, returns Mermaid workflow diagram.
-7. Final reply: what changed, Mermaid diagram, verification (commands + results, Docker proof), files as links, Sources.
-Exception: change of 5 lines or fewer in 1 file with no logic (typo, copy, constant): main edits, `strict-reviewer` checks, no `coder`, no `doc-writer`.
-Questions without code change: answer directly, no agents.
+## 3. Code-change workflow: adaptive agents
+Main session orchestrates. Subagents never spawn agents.
+1. Classify task size.
+   - Tiny: one file, <=5 logic-free lines -> main edits, reviewer only.
+   - Small: <=3 files, one focused change -> coder + reviewer.
+   - Medium/large: researcher only when needed, then coder + reviewer.
+2. Spawn only the minimum agents that add value. Never parallel agents.
+3. Coder receives a brief with objective, relevant paths, research facts, constraints, and required checks. Max 3 files per call; no pasted file content.
+4. Strict-reviewer reviews the diff plus direct callers/callees. It must hunt defects line by line and prove findings.
+5. On FAIL, resume coder with only actionable findings. Then resume reviewer with only the delta. Default max 2 fix/review cycles; a 3rd cycle only when a genuine BLOCK/MAJOR issue remains.
+6. After PASS, run the requested/cheapest relevant verification. No automatic polish round.
+7. Run doc-writer only when behavior/API/config/setup documentation actually changed or the user asks for documentation. Otherwise skip it.
+8. Final response: concise change summary, verification, workflow diagram only when useful, and sources when research was used.
 
-## 4. Token budget (hard limits)
-- Models: `coder` and `strict-reviewer` `sonnet`, `doc-writer` `haiku`. `opus` only if user asks.
-- One agent running at a time. Never parallel agents. Never review while coder runs.
-- Brief max 120 words: objective, output format, paths, tools/sources, boundaries, research facts, repo rules. Max 3 files per agent call. No pasted file content.
-- Agent-to-agent messages: terse English (caveman ultracave style) in each agent's fixed schema. Code, paths, line numbers, identifiers, commands, errors verbatim. Pass references (paths, line ranges, diff commands, URLs), not content.
-- Reports: `coder` max 15 lines, `doc-writer` max 20 lines with diagram, `strict-reviewer` lists every BLOCK/MAJOR/MINOR finding, one line each, no NITs.
-- Re-review round: prior findings plus new BLOCK/MAJOR only. Main never forwards NITs.
-- Do only what the user asked. No unrequested extras (CI, mutation tests, big test suites, extra platforms). Offer them instead.
-- Resume with SendMessage, deltas only. Read needed line ranges only. Never re-read a file already in context.
-- After `PASS`: stop. No polish rounds.
+## 4. Model governance + token economy
+Goal: maximum quality with minimum model cost, context, agents, and turns.
 
-## 5. Docker: always run latest code
+### Allowed automatically
+- Haiku: discovery, simple repo reading, docs lookup, summaries, straightforward documentation.
+- Sonnet LOW: simple coding, small fixes, routine refactors.
+- Sonnet MEDIUM: default for normal coding, debugging, review, architecture, and security-sensitive reasoning.
+
+### Permission-gated
+- Sonnet HIGH / MAX / extra-high: NEVER enable automatically. Ask user first.
+- Opus: NEVER use automatically under any circumstance. Ask user first.
+
+Permission prompt must state:
+MODEL:
+REASON:
+EXPECTED BENEFIT:
+Wait for explicit confirmation. No confirmation = stay on current allowed model.
+
+Escalation path:
+Haiku -> Sonnet LOW -> Sonnet MEDIUM -> (ask) Sonnet HIGH -> (ask) Opus
+
+A failed task, complex task, reviewer disagreement, or timeout does not authorize escalation.
+
+### Hard token controls
+- One agent at a time. Never parallel agents.
+- Prefer one capable agent over redundant agents.
+- Max 120-word agent brief. No pasted file content; use paths, line ranges, diff commands, and research references.
+- Agent reports: coder <=15 lines; reviewer one line per actionable finding + final PASS/FAIL; doc-writer <=20 lines only when invoked.
+- Agent messages: terse, delta-only. Never repeat full context or prior findings.
+- Re-review only changed delta plus prior actionable findings.
+- Do not re-research a fact already established for the task.
+- Do not read files already in context unless needed lines changed.
+- Use deterministic tools for simple work instead of agents.
+- Do not spawn an agent for trivial file inspection or a simple command.
+- Stop immediately when acceptance criteria are met and checks pass.
+
+## 5. Docker: verify latest code
 Main session only. Applies when Docker runs containers for this repo.
-1. Detect (start of every task):
+1. Detect:
    ```bash
    docker context show
    docker compose ps --status running
    ```
-   Also `docker ps --filter "label=com.docker.compose.project.working_dir=$PWD"`. Context not local (`default`, `desktop-linux`, `colima`, `orbstack`, `rootless`) or name has `prod`: stop, ask user.
-2. Restart at task start and after every code change, before testing: rebuild and recreate services that run repo code (have `build:` or a bind mount of the repo). Leave image-only services (postgres, redis) running.
+   Remote/non-local context or prod/production target: stop and ask user.
+2. After code changes, rebuild/recreate repo-code services before testing:
    ```bash
    docker compose up -d --build --force-recreate --wait <app-services>
    ```
-3. Verify latest code, with proof in final reply:
-   - `docker compose ps`: service `running`/`healthy`.
-   - `docker compose logs --tail=50 <service>`: no startup errors.
-   - For 1-2 changed files: `sha256sum` local equals `docker compose exec <service> sha256sum <container-path>` (path from bind mount via `docker inspect` or Dockerfile `WORKDIR`/`COPY`).
-   - Mismatch: rebuild with `--no-cache`, check again. Still mismatch: stop, report.
-4. Never `down -v`, prune, or remove volumes/images without asking (section 2).
+3. Verify services running/healthy and logs have no startup errors. For changed files, compare local/container hashes when practical.
+4. Never destructive-prune/remove volumes/images without permission.
